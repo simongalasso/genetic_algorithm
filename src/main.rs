@@ -27,7 +27,7 @@ impl Entity {
                 score += 1.0;
             }
         }
-        self.fitness = score / target.len() as f64;
+        self.fitness = (score / target.len() as f64).powf(2.0) + 0.01;
     }
 
     fn crossover(&self, partner: Entity) -> Entity {
@@ -54,7 +54,6 @@ impl Entity {
 struct Population {
     mutation_rate: f64,
     entities: Vec<Entity>,
-    mating_pool: Vec<Entity>,
     generation: i32
 }
 
@@ -63,12 +62,12 @@ impl Population {
         Population {
             mutation_rate: 0.01,
             entities: (0..size).map(|_x| Entity::new(target.len())).collect(),
-            mating_pool: Vec::new(),
             generation: 0
         }
     }
 
-    fn natural_selection(&mut self) {
+    fn generate(&mut self) {
+        let mut new_entities: Vec<Entity> = Vec::new();
         let mut max_fitness: f64 = 0.0;
 
         for i in 0..self.entities.len() {
@@ -77,28 +76,25 @@ impl Population {
             }
         }
 
-        self.mating_pool.clear();
-        for i in 0..self.entities.len() {
-            let scaled_fitness: f64 = self.entities[i].fitness / max_fitness;
-            let n: i32 = (scaled_fitness * 100.0).floor() as i32;
-            //println!("{} | {}", scaled_fitness, n);
-            for _ in 0..n {
-                self.mating_pool.push(self.entities[i].clone());
-            }
-        }
-    }
-
-    fn generate(&mut self) {
-        for i in 0..self.entities.len() {
-            let a: usize = rand::thread_rng().gen_range(0, self.mating_pool.len());
-            let b: usize = rand::thread_rng().gen_range(0, self.mating_pool.len());
-            let partner_a: Entity = self.mating_pool[a].clone();
-            let partner_b: Entity = self.mating_pool[b].clone();
+        for _ in 0..self.entities.len() {
+            let partner_a: Entity = self.pick_partner(max_fitness);
+            let partner_b: Entity = self.pick_partner(max_fitness);
             let mut child: Entity = partner_a.crossover(partner_b);
             child.mutate(self.mutation_rate);
-            self.entities[i] = child;
+            new_entities.push(child);
         }
+        self.entities = new_entities;
         self.generation += 1;
+    }
+
+    fn pick_partner(&self, max_fitness: f64) -> Entity {
+        loop {
+            let partner: Entity = self.entities[rand::thread_rng().gen_range(0, self.entities.len())].clone();
+            let r: f64 = rand::thread_rng().gen_range(0.0, max_fitness);
+            if r < partner.fitness {
+                return partner;
+            }
+        } 
     }
 
     fn evaluate(&self) {
@@ -121,7 +117,7 @@ impl Population {
 /* Functions --------------------------------------------- */
 
 fn main() {
-    let target: String = String::from("Hello world !");
+    let target: String = String::from("This string is the goal");
     let mut population: Population = Population::new(&target, 500);
 
     loop {
@@ -129,7 +125,6 @@ fn main() {
             population.entities[i].calc_fitness(&target);
         }
         population.evaluate();
-        population.natural_selection();
         population.generate();
     }
 }
