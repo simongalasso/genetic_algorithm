@@ -8,7 +8,7 @@ use std::str;
 #[derive(Clone)]
 struct Entity {
     genes: Vec<u8>,
-    fitness: f64
+    fitness: f64,
 }
 
 impl Entity {
@@ -77,8 +77,8 @@ impl Population {
         }
 
         for _ in 0..self.entities.len() {
-            let partner_a: Entity = self.pick_partner(max_fitness);
-            let partner_b: Entity = self.pick_partner(max_fitness);
+            let partner_a: Entity = self.pick_partner();
+            let partner_b: Entity = self.pick_partner();
             let mut child: Entity = partner_a.crossover(partner_b);
             child.mutate(self.mutation_rate);
             new_entities.push(child);
@@ -87,14 +87,24 @@ impl Population {
         self.generation += 1;
     }
 
-    fn pick_partner(&self, max_fitness: f64) -> Entity {
-        loop {
-            let partner: Entity = self.entities[rand::thread_rng().gen_range(0, self.entities.len())].clone();
-            let r: f64 = rand::thread_rng().gen_range(0.0, max_fitness);
-            if r < partner.fitness {
-                return partner;
-            }
-        } 
+    fn pick_partner(&mut self) -> Entity {
+        let mut fitness_sum: f64 = 0.0;
+
+        for i in 0..self.entities.len() {
+            fitness_sum += self.entities[i].fitness;
+        }
+
+        for i in 0..self.entities.len() {
+            self.entities[i].fitness /= fitness_sum; 
+        }
+
+        let mut r: f64 = rand::thread_rng().gen_range(0.0, 1.0);
+        let mut index = 0;
+        while r > 0.0 {
+            r -= self.entities[index].fitness;
+            index += 1;
+        }
+        return self.entities[index - 1].clone();
     }
 
     fn evaluate(&self) {
@@ -118,7 +128,7 @@ impl Population {
 
 fn main() {
     let target: String = String::from("This string is the goal");
-    let mut population: Population = Population::new(&target, 500);
+    let mut population: Population = Population::new(&target, 200);
 
     loop {
         for i in 0..population.entities.len() {
